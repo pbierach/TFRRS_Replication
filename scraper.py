@@ -48,10 +48,9 @@ def getRaceInfoFromPage(url):
     data = urllib.request.urlopen(url)
     soup = BeautifulSoup(data, 'html.parser')
     keys = ["name", "date", "venue", "location", "gender", "event", "team", "ind"]
-    mRace = dict.fromkeys(keys)
-    wRace = dict.fromkeys(keys)
-    mRace["gender"] = "men"
-    wRace["gender"] = "women"
+    #call get events first
+
+
 
     meet = soup.find_all("div", "page container")
 
@@ -84,6 +83,7 @@ def getRaceInfoFromPage(url):
     wRace["ind"] = list[1]
     return [mRace, wRace]
 
+#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the name of the race as a part of a given dictionary
@@ -97,6 +97,7 @@ def getRaceName(soup, men, women):
     women["name"] = cleanName
     return [men, women]
 
+#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the date of the race as a part of a given dictionary
@@ -109,6 +110,7 @@ def getRaceDate(soup, men, women):
     women["date"] = date
     return [men, women]
 
+#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the venue and location of the race as a part of a given dictionary
@@ -152,43 +154,65 @@ and returns the race events as a part of a given dictionary
 Arg: BS4 object of the page, dictionary for men's race, dictionary for women's race
 Return: list of dictionaries 
 '''
-def getRaceEvents(soup, men, women):
+def getRaceEvents(soup):
+    keys = ["name", "date", "venue", "location", "gender", "event", "team", "ind"]
     eventList = soup.find_all("ol", "inline-list pl-0 pt-5 events-list")[0].find_all("a")
     genders = []
-    #only one gender call separate function path
+    #only one gender
     if len(eventList) == 1:
         if any("Women" in name for name in eventList[0].text):
             genders = ["Women"]
+            wRace = dict.fromkeys(keys)
+            wRace["gender"] = "women"
+            wEvent = eventList[0].text
+            # CHANGE BECAUSE NOT ALL END WITH 'S
+            # WOMEN AND MEN NOT JUST WOMEN'S/MEN'S
+            endOfGender = wEvent.find("s") + 1
+            wEvent = wEvent[endOfGender:].strip()
+            wRace["event"] = wEvent
+
         elif "Men" in eventList[0].text or "Men's" in eventList[0].text:
             genders = ["Men"]
+            mRace = dict.fromkeys(keys)
+            mRace["gender"] = "women"
+            mEvent = eventList[0].text
+            # CHANGE BECAUSE NOT ALL END WITH 'S
+            # WOMEN AND MEN NOT JUST WOMEN'S/MEN'S
+            endOfGender = mEvent.find("s") + 1
+            mEvent = mEvent[endOfGender:].strip()
+            mRace["event"] = mEvent
+
         else:
             genders = ["Men", "Women"]
-    #both genders
-    else:
-        womenFirst = any("Women" in name for name in eventList[0].text)
+            womenFirst = True
+            mRace = dict.fromkeys(keys)
+            wRace = dict.fromkeys(keys)
+            mRace["gender"] = "men"
+            wRace["gender"] = "women"
+            if(any("Women" in name for name in eventList[0].text)):
+                wEvent = eventList[0].text
+                #CHANGE BECAUSE NOT ALL END WITH 'S
+                #WOMEN AND MEN NOT JUST WOMEN'S/MEN'S
+                endOfGender = wEvent.find("s") + 1
+                wEvent = wEvent[endOfGender:].strip()
+                wRace["event"] = wEvent
 
-    if("Women's" in eventList[0].text):
-        wEvent = eventList[0].text
-        endOfGender = wEvent.find("s") + 1
-        wEvent = wEvent[endOfGender:].strip()
-        women["event"] = wEvent
+                mEvent = eventList[1].text
+                endOfGender = mEvent.find("s") + 1
+                mEvent = mEvent[endOfGender:].strip()
+                mRace["event"] = mEvent
+            else:
+                womenFirst = False
+                mEvent = eventList[0].text
+                endOfGender = mEvent.find("s") + 1
+                mEvent = mEvent[endOfGender:].strip()
+                mRace["event"] = mEvent
 
-        mEvent = eventList[1].text
-        endOfGender = mEvent.find("s") + 1
-        mEvent = mEvent[endOfGender:].strip()
-        men["event"] = mEvent
-    else:
-        womenFirst = False
-        mEvent = eventList[0].text
-        endOfGender = mEvent.find("s") + 1
-        mEvent = mEvent[endOfGender:].strip()
-        men["event"] = mEvent
-
-        wEvent = eventList[1].text
-        endOfGender = wEvent.find("s") + 1
-        wEvent = wEvent[endOfGender:].strip()
-        women["event"] = wEvent
-    return [men, women, womenFirst]
+                wEvent = eventList[1].text
+                endOfGender = wEvent.find("s") + 1
+                wEvent = wEvent[endOfGender:].strip()
+                wRace["event"] = wEvent
+                return [mRace, wRace, womenFirst, genders]
 
 '''
 This function takes a BS4 object of the tfrrs page
