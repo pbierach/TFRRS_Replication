@@ -154,10 +154,19 @@ Return: list of dictionaries
 '''
 def getRaceEvents(soup, men, women):
     eventList = soup.find_all("ol", "inline-list pl-0 pt-5 events-list")[0].find_all("a")
-    genders = ["Men", "Women"]
+    genders = []
+    #only one gender call separate function path
     if len(eventList) == 1:
+        if any("Women" in name for name in eventList[0].text):
+            genders = ["Women"]
+        elif "Men" in eventList[0].text or "Men's" in eventList[0].text:
+            genders = ["Men"]
+        else:
+            genders = ["Men", "Women"]
+    #both genders
+    else:
+        womenFirst = any("Women" in name for name in eventList[0].text)
 
-    womenFirst = True
     if("Women's" in eventList[0].text):
         wEvent = eventList[0].text
         endOfGender = wEvent.find("s") + 1
