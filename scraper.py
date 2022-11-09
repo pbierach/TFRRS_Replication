@@ -192,16 +192,23 @@ def getRaceEvents(soup):
             wRace["gender"] = "women"
             wEvent = eventList[0].text
             endOfGender = wEvent.find("n")
-            #case: word is just Women
-            if wEvent[endOfGender+1] != "'":
-                endOfGender = wEvent.find("s")
-                wEvent = wEvent[endOfGender + 1:].strip()
-                wRace["event"] = wEvent
-                return [genders, wRace]
-            # case: word is Women's
+            if (endOfGender + 1 > len(wEvent)):
+                wRace["event"] = "6k"
             else:
-                wEvent = wEvent[endOfGender+1:].strip()
-                wRace["event"] = wEvent
+                # case: word is Women
+                if wEvent[endOfGender + 1] == " ":
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Women's
+                elif wEvent[endOfGender + 1] == "'":
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Womens
+                else:
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
                 return [genders, wRace]
 
         #case: single gender is men's
@@ -211,16 +218,23 @@ def getRaceEvents(soup):
             mRace["gender"] = "Men"
             mEvent = eventList[0].text
             endOfGender = mEvent.find("n")
-            # case: word is just Men
-            if mEvent[endOfGender + 1] != "'":
-                endOfGender = mEvent.find("s")
-                mEvent = mEvent[endOfGender + 1:].strip()
-                mRace["event"] = mEvent
-                return [genders, mRace]
-            # case: word is Men's
+            if (endOfGender + 1 > len(mEvent)):
+                mRace["event"] = "8k"
             else:
-                mEvent = mEvent[endOfGender + 1:].strip()
-                mRace["event"] = mEvent
+                # case: word is Men
+                if mEvent[endOfGender + 1] == " ":
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Men's
+                elif mEvent[endOfGender + 1] == "'":
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Mens
+                else:
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
                 return [genders, mRace]
     #case: both genders
     else:
@@ -231,42 +245,89 @@ def getRaceEvents(soup):
         mRace["gender"] = "men"
         wRace["gender"] = "women"
         #case: women are first
-        if(any("Women" in name for name in eventList[0].text)):
-            wEvent = eventList[0].text
-            endOfGender = wEvent.find("n") + 1
-            wEvent = wEvent[endOfGender:].strip()
-            wRace["event"] = wEvent
-
+        if "Women" in eventList[0].text:
             mEvent = eventList[1].text
-            endOfGender = mEvent.find("n") + 1
-            mEvent = mEvent[endOfGender:].strip()
-            mRace["event"] = mEvent
+            endOfGender = mEvent.find("n")
+            # case: no event is listed, just gender
+            if (endOfGender + 1 > len(mEvent)):
+                mRace["event"] = "8k"
+            else:
+                # case: word is Men
+                if mEvent[endOfGender + 1] == " ":
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Men's
+                elif mEvent[endOfGender + 1] == "'":
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Mens
+                else:
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+            wEvent = eventList[0].text
+            endOfGender = wEvent.find("n")
+            if (endOfGender + 1 > len(wEvent)):
+                wRace["event"] = "6k"
+            else:
+                # case: word is Women
+                if wEvent[endOfGender + 1] == " ":
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Women's
+                elif wEvent[endOfGender + 1] == "'":
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Womens
+                else:
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
         #case: women are second
         else:
             womenFirst = False
             mEvent = eventList[0].text
-            endOfGender = mEvent.find("n") + 1
-            # case: word is just Men
-            if mEvent[endOfGender + 1] != "'":
-                mEvent = mEvent[endOfGender + 1:].strip()
-                mRace["event"] = mEvent
-            # case: word is Men's
+            endOfGender = mEvent.find("n")
+            #case: no event is listed, just gender
+            if(endOfGender+1 > len(mEvent)):
+                mRace["event"] = "8k"
             else:
-                endOfGender = mEvent.find("s")
-                mEvent = mEvent[endOfGender + 1:].strip()
-                mRace["event"] = mEvent
+                #case: word is Men
+                if mEvent[endOfGender + 1] == " ":
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Men's
+                elif mEvent[endOfGender + 1] == "'":
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
+                # case: word is Mens
+                else:
+                    endOfGender = mEvent.find("s")
+                    mEvent = mEvent[endOfGender + 1:].strip()
+                    mRace["event"] = mEvent
             wEvent = eventList[1].text
-            endOfGender = wEvent.find("n") + 1
-            # case: word is just Women
-            if wEvent[endOfGender + 1] != "'":
-                endOfGender = wEvent.find("s")
-                wEvent = wEvent[endOfGender + 1:].strip()
-                wRace["event"] = wEvent
-            # case: word is Women's
+            endOfGender = wEvent.find("n")
+            if (endOfGender + 1 > len(wEvent)):
+                wRace["event"] = "6k"
             else:
-                wEvent = wEvent[endOfGender + 1:].strip()
-                wRace["event"] = wEvent
-            return [genders, mRace, wRace, womenFirst]
+                # case: word is Women
+                if wEvent[endOfGender + 1] == " ":
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Women's
+                elif wEvent[endOfGender + 1] == "'":
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+                # case: word is Womens
+                else:
+                    endOfGender = wEvent.find("s")
+                    wEvent = wEvent[endOfGender + 1:].strip()
+                    wRace["event"] = wEvent
+    return [genders, mRace, wRace, womenFirst]
 
 '''
 This function takes a BS4 object of the tfrrs page
@@ -618,9 +679,9 @@ def getAllInfoFromRangeOfPages(limit):
 
 
 def main():
-    getAllInfoFromRangeOfPages(2)
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20662/NJCAA_Division_III_Cross_Country_Championship")
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/19936/North_Coast_Athletic_Conference")
+    #getAllInfoFromRangeOfPages(2)
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20660/CCAA_Cross_Country_Championships")
+    getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21189/Saint_Francis_University_Red_Flash_Rally")
 
 
 main()
