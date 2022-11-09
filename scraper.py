@@ -55,8 +55,12 @@ def getRaceInfoFromPage(url):
     if len(genders) == 1:
         if genders[0] == "Men":
             mRace = list[1]
+            mRace = singleGenderRace(soup, mRace)
+            return mRace
         else:
             wRace = list[1]
+            wRace = singleGenderRace(soup, wRace)
+            return wRace
     else:
         mRace = list[1]
         wRace = list[2]
@@ -64,24 +68,21 @@ def getRaceInfoFromPage(url):
         list = bothGenderRace(soup, mRace, wRace, womenFirst)
         mRace = list[0]
         wRace = list[1]
+        return [mRace, wRace]
 
 def singleGenderRace(soup, race):
     # get race specifics
-    list = getRaceName(soup, race)
-    race = list[0]
+    race = getRaceNameSingle(soup, race)
     # date
-    list = getRaceDate(soup, race)
-    race = list[0]
+    race = getRaceDateSingle(soup, race)
     # location
-    list = getRaceLocation(soup, race)
-    race = list[0]
+    race = getRaceLocationSingle(soup, race)
     # separate by team results and individual
-    list = getTeamResultsFromPage(soup, womenFirst) ########
+    list = getTeamResultsFromPageSingle(soup)
     race["team"] = list[0]
-    listMTeams = list[1]
+    listTeams = list[1]
     year = race["date"][0:5]
-    list = getIndResultsFromPage(soup, womenFirst, year, listMTeams, listWTeams) ########
-    race["ind"] = list[0]
+    race["ind"] = getIndResultsFromPageSingle(soup, year, listTeams)
     return race
 
 def bothGenderRace(soup, mRace, wRace, womenFirst):
@@ -109,9 +110,6 @@ def bothGenderRace(soup, mRace, wRace, womenFirst):
     wRace["ind"] = list[1]
     return [mRace, wRace]
 
-
-
-#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the name of the race as a part of a given dictionary
@@ -125,7 +123,6 @@ def getRaceName(soup, men, women):
     women["name"] = cleanName
     return [men, women]
 
-#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the date of the race as a part of a given dictionary
@@ -138,7 +135,6 @@ def getRaceDate(soup, men, women):
     women["date"] = date
     return [men, women]
 
-#CHANGE
 '''
 This function takes a BS4 object of the tfrrs page
 and returns the venue and location of the race as a part of a given dictionary
@@ -479,6 +475,103 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames):
             noGrade = False
     return ind
 
+########################################################################################################################
+########################################################################################################################
+
+'''
+This function takes a BS4 object of the tfrrs page
+and returns the name of the race as a part of a given dictionary
+Arg: BS4 object of the page, dictionary for men's race, dictionary for women's race
+Return: list of dictionaries 
+'''
+def getRaceNameSingle(soup, race):
+    name = soup.find("h3").contents[0]
+    cleanName = name.strip()
+    race["name"] = cleanName
+    return race
+
+'''
+This function takes a BS4 object of the tfrrs page
+and returns the date of the race as a part of a given dictionary
+Arg: BS4 object of the page, dictionary for men's race, dictionary for women's race
+Return: list of dictionaries 
+'''
+def getRaceDateSingle(soup, race):
+    date = convertDateToSQL(soup.find("div", "panel-heading-normal-text inline-block").contents[0])
+    race["date"] = date
+    return race
+
+'''
+This function takes a BS4 object of the tfrrs page
+and returns the venue and location of the race as a part of a given dictionary
+Arg: BS4 object of the page, dictionary for men's race, dictionary for women's race
+Return: list of dictionaries 
+'''
+def getRaceLocationSingle(soup, race):
+    location = soup.find_all("div", "panel-heading-normal-text inline-block")
+    venue = ""
+    place = ""
+    ifPlace = False
+    for div in location:
+        if (ifPlace):
+            venue = div.text
+            venue = venue.strip()
+        ifPlace = True
+
+
+    locationIndex = venue.find("\n")
+    location = venue[locationIndex+1:len(venue)].strip()
+    venue = venue[0:locationIndex]
+    cut = None
+    for i, char in enumerate(location):
+        if char.isdigit():
+            cut = i
+            break
+    place = location[0:cut].strip()
+    while place.find("\n") > 0:
+        newLine = place.find("\n")
+        place = place[newLine:len(place)].strip()
+
+    race["venue"] = venue
+    race["location"] = place
+    return race
+
+'''
+This function takes a BS4 object of the tfrrs page
+and returns team scores as a part of a given dictionary
+Arg: url of the page, boolean if Women's results were first on page
+Return: list of dictionaries 
+'''
+def getTeamResultsFromPageSingle(soup):
+    keys = ["place", "team", "points", "scorers"]
+    team = dict.fromkeys(keys)
+    #separate relevant data for the team section
+    teamResults = soup.find_all("tbody", "color-xc")
+    results = teamResults[0].text.split()
+    #get data from relevant html
+    list = scrapeTeamResults(results, team)
+    team = list[0]
+    nameOfTeams = list[1]
+    return [team, nameOfTeams]
+
+'''
+This function takes a BS4 object of the tfrrs and returns
+individual performances as a part of a given dictionary
+Arg: url of the page, boolean if Women's results were first on page
+Return: list of dictionaries 
+'''
+def getIndResultsFromPageSingle(soup, year, teams):
+    keys = ["place", "name", "year", "team", "time"]
+    ind = {keys[0]: [], keys[1]: [], keys[2]: [], keys[3]: [], keys[4]: []}
+
+    teamResults = soup.find_all("tbody", "color-xc")
+    results = teamResults[1].text.split()
+
+    # get data from relevant html
+    ind = scrapeIndResults(results, ind, year, teams)
+    return ind
+
+
 
 '''
 This fucntion takes a date in the format of "Month Day, Year" and 
@@ -503,7 +596,7 @@ def convertDateToSQL(date):
     return year + "-" + month + "-" + day
 
 '''
-This fucntion takes an upper limit for a range
+This function takes an upper limit for a range
 and gets all of the information for the meets listed
 on search pages 1 to upper limit from tfrrs
 Args: int of upper limit 
@@ -518,12 +611,15 @@ def getAllInfoFromRangeOfPages(limit):
     print(links)
     for i in range(len(links)):
         list = getRaceInfoFromPage(links[i])
-        print(list[0])
-        print(list[1])
+        if len(list) == 1:
+            print(list[0])
+        else:
+            print(list[0])
+            print(list[1])
 
 
 def main():
-    getAllInfoFromRangeOfPages(2)
+    getAllInfoFromRangeOfPages(1)
     #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20662/NJCAA_Division_III_Cross_Country_Championship")
     #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/19936/North_Coast_Athletic_Conference")
 
