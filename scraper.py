@@ -48,11 +48,21 @@ def getRaceInfoFromPage(url):
     data = urllib.request.urlopen(url)
     soup = BeautifulSoup(data, 'html.parser')
     keys = ["name", "date", "venue", "location", "gender", "event", "team", "ind"]
-    #call get events first
-
-
-
     meet = soup.find_all("div", "page container")
+    # event
+    list = getRaceEvents(soup)
+    genders = list[0]
+    if len(genders) == 1:
+        if genders[0] == "Men":
+            mRace = list[1]
+        else:
+            wRace = list[1]
+    else:
+        mRace = list[1]
+        wRace = list[2]
+        womenFirst = list[3]
+
+    #-----------------------------------
 
     # get race specifics
     list = getRaceName(soup, mRace, wRace)
@@ -66,11 +76,6 @@ def getRaceInfoFromPage(url):
     list = getRaceLocation(soup, mRace, wRace)
     mRace = list[0]
     wRace = list[1]
-    # event
-    list = getRaceEvents(soup, mRace, wRace)
-    mRace = list[0]
-    wRace = list[1]
-    womenFirst = list[2]
     # separate by team results and individual
     list = getTeamResultsFromPage(soup, womenFirst)
     mRace["team"] = list[0]
@@ -170,6 +175,7 @@ def getRaceEvents(soup):
             endOfGender = wEvent.find("s") + 1
             wEvent = wEvent[endOfGender:].strip()
             wRace["event"] = wEvent
+            return [genders, wRace]
 
         elif "Men" in eventList[0].text or "Men's" in eventList[0].text:
             genders = ["Men"]
@@ -181,6 +187,7 @@ def getRaceEvents(soup):
             endOfGender = mEvent.find("s") + 1
             mEvent = mEvent[endOfGender:].strip()
             mRace["event"] = mEvent
+            return [genders, mRace]
 
         else:
             genders = ["Men", "Women"]
@@ -212,7 +219,7 @@ def getRaceEvents(soup):
                 endOfGender = wEvent.find("s") + 1
                 wEvent = wEvent[endOfGender:].strip()
                 wRace["event"] = wEvent
-                return [mRace, wRace, womenFirst, genders]
+                return [genders, mRace, wRace, womenFirst]
 
 '''
 This function takes a BS4 object of the tfrrs page
