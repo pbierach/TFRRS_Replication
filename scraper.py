@@ -202,6 +202,7 @@ def getRaceEvents(soup):
             wEvent = parenthEvent[0].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
             return [genders, wRace]
 
@@ -234,6 +235,7 @@ def getRaceEvents(soup):
             wEvent = parenthEvent[0].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
 
         #case: women are second
@@ -247,6 +249,7 @@ def getRaceEvents(soup):
             wEvent = parenthEvent[2].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
 
     return [genders, mRace, wRace, womenFirst]
