@@ -193,9 +193,9 @@ def getRaceEvents(soup):
     eventList = soup.find_all("ol", "inline-list pl-0 pt-5 events-list")[0].find_all("a")
     parenthEvent = soup.find_all("h3", "font-weight-500")
     genders = []
-    #case: only one gender
+    # case: only one gender
     if len(eventList) == 1:
-        #case: single gender is womens
+        # case: single gender is womens
         if "Women" in eventList[0].text:
             genders = ["Women"]
             wRace = dict.fromkeys(keys)
@@ -203,10 +203,11 @@ def getRaceEvents(soup):
             wEvent = parenthEvent[0].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
             return [genders, wRace]
 
-        #case: single gender is men's
+        # case: single gender is men's
         elif "Men" in eventList[0].text:
             genders = ["Men"]
             mRace = dict.fromkeys(keys)
@@ -217,7 +218,7 @@ def getRaceEvents(soup):
             mEvent = mEvent[openP:closeP]
             mRace["event"] = mEvent
             return [genders, mRace]
-    #case: both genders
+    # case: both genders
     else:
         genders = ["Men", "Women"]
         womenFirst = True
@@ -225,19 +226,20 @@ def getRaceEvents(soup):
         wRace = dict.fromkeys(keys)
         mRace["gender"] = "men"
         wRace["gender"] = "women"
-        #case: women are first
+        # case: women are first
         if "Women" in eventList[0].text:
             mEvent = parenthEvent[2].text
-            openP = mEvent.find("(")+1
+            openP = mEvent.find("(") + 1
             closeP = mEvent.find(")")
             mEvent = mEvent[openP:closeP]
             mRace["event"] = mEvent
             wEvent = parenthEvent[0].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
 
-        #case: women are second
+        # case: women are second
         else:
             womenFirst = False
             mEvent = parenthEvent[0].text
@@ -248,6 +250,7 @@ def getRaceEvents(soup):
             wEvent = parenthEvent[2].text
             openP = wEvent.find("(") + 1
             closeP = wEvent.find(")")
+            wEvent = wEvent[openP:closeP]
             wRace["event"] = wEvent
 
     return [genders, mRace, wRace, womenFirst]
@@ -309,9 +312,15 @@ def scrapeTeamResults(results, team):
         i += 1
         #get the scores of the runners that ran (not always top 7)
         scorers = []
-        while i+2 < len(results)-1 and results[i+2].isdigit():
-            scorers.append(results[i])
-            i += 1
+        #if statement that checks if last team is being checked so it can avoid an out of bounds error
+        if i + 10 >= len(results):
+            while i <= len(results)-1:
+                scorers.append(results[i])
+                i += 1
+        else:
+            while i+2 < len(results)-1 and results[i+2].isdigit():
+                scorers.append(results[i])
+                i += 1
         listOfScorers.append(scorers)
         i += 1
 
@@ -355,12 +364,13 @@ Return: updated dict for team results
 '''
 def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
     thaddeusMeets = ["Region XIX Championships", "NJCAA Division III Cross Country Championship"]
-    sharedWords = ["St.", "Angel", "Diego", "Santiago"]
+    sharedWords = ["St.", "Angel", "Diego", "Santiago", "Frank", "Francis"]
     if meetName in thaddeusMeets:
         listOfTeamNames.append("Thaddeus Stevens")
     year = ["FR-1","SO-2","JR-3","SR-4"]
     yearToGrade = {"Freshman":"FR-1", "Sophomore":"SO-2", "Junior":"JR-3", "Senior":"SR-4" }
     dateToGrade = {4:"FR-1",3:"SO-2",2:"JR-3",1:"SR-4",0:"SR-4"}
+    nonScorers = 0
     i = 0
     noGrade = False
     while i < len(results)-1:
@@ -405,6 +415,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
                 i += 1
             ind["team"].append(school.strip())
             ind["place"].append(results[i])
+            ind["time"].append(results[i])
             while len(results[i]) != 1 and i < len(results)-1:
                 i += 1
         else:
@@ -464,11 +475,93 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
             ind["time"].append(results[i])
             i += 1
             #skip potential score
-            if i < len(results)-1 and len(results[i]) <= 3:
-                if int(results[i]) != 0 and ( int(results[i]) != place+1 or int(results[i]) == place ):
-                    #in case of tie, then the next place would be 2 ahead
-                    if int(results[i]) != place+2 :
+            #runner is a nonscorer but has splits
+            if i < len(results) - 1 and len(results[i]) > 6:
+                nonScorers += 1
+                while i < len(results) - 1 and len(results[i]) > 6:
+                    i += 1
+            elif i < len(results)-1 and len(results[i]) <= 3:
+                #score
+                #splits come and mess something up
+                if len(results[i+1]) > 3 and results[i+1][0].isdigit():
+                    i+=1
+                    while i < len(results) - 1 and len(results[i]) > 6:
                         i += 1
+                # there's a tie
+                if i < len(results)-1 and int(results[i]) == place and int(results[i+1]) == place:
+                    #skip score (on place)
+                    i += 1
+                    #process person normally
+                    # first element is place
+                    place = int(results[i])
+                    ind["place"].append(results[i])
+                    i += 1
+                    name = ""
+                    # check for name and stop at year in school (if given)
+                    # checks if still on name (given that year is in standard format (i.e. SR-4))
+                    while results[i][0].isalpha() and not (results[i][-1].isdigit()) and results[i] != "Unattached":
+                        # this logical path first assumes that dealing with year and not name
+                        # if its in standard form append it to the dict
+                        if results[i] in year:
+                            ind["year"].append(results[i])
+                            break
+                        else:
+                            # written out as a string
+                            if len(results[i]) > 4 and (
+                                    results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
+                                ind["year"].append(yearToGrade[results[i]])
+                                break
+                            elif len(results[i]) == 4 and results[i][0] == "2":
+                                # kept as year of graduation
+                                diff = int(results[i]) - int(currYear)
+                                ind["year"].append(dateToGrade[diff])
+                                break
+                        # in case of no grade listed, check if name is in list of team names to stop
+                        sub = results[i]
+                        if any(sub in name for name in listOfTeamNames) and not (sub in sharedWords) or sub[0:3] == "UNA":
+                            noGrade = True
+                            break
+                        else:
+                            name = name + results[i] + " "
+                            i += 1
+                    ind["name"].append(name.strip())
+                    school = ""
+                    if noGrade == False:
+                        if results[i] in year:
+                            ind["year"].append(results[i])
+                        else:
+                            # written out as a string
+                            if len(results[i]) > 4 and (
+                                    results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
+                                ind["year"].append(yearToGrade[results[i]])
+                            elif len(results[i]) == 4 and results[i][0] == "2":
+                                # kept as year of graduation
+                                diff = int(results[i]) - int(currYear)
+                                ind["year"].append(dateToGrade[diff])
+                        i += 1
+
+                    # find school name
+                    while results[i][0].isalpha() or results[i][0] == "(" or results[i][0] == "&" or results[i][0] == "-":
+                        school = school + results[i] + " "
+                        i += 1
+                    ind["team"].append(school.strip())
+                    # skip avg mile time
+                    i += 1
+                    ind["time"].append(results[i])
+                    i += 1
+                    #skip score
+                    if int(results[i]) == place or int(results[i]) == place+1:
+                        i += 1
+                #no tie
+                else:
+                    if i == len(results)-1:
+                        break
+                    #normal scoring
+                    if int(results[i]) == place or int(results[i]) == place - nonScorers and place+1 != int(results[i]):
+                        i += 1
+                    #non-scoring individual and results[i] is next persons place
+                    elif int(results[i]) == place+1 :
+                        nonScorers += 1
             #skip any splits that the data may have
             while i < len(results)-1 and len(results[i]) > 6:
                 i += 1
@@ -608,9 +701,9 @@ def getAllInfoFromRangeOfPages(start, limit):
         links.extend(getMeetLinks("https://www.tfrrs.org/results_search_page.html?page=" + str(i)
                      + "&search_query=&with_month=&with_sports=xc&with_states=&with_year="))
 
-    print(links)
     meetDicts = []
     for i in range(len(links)):
+        print(links[i])
         list = getRaceInfoFromPage(links[i])
         if type(list) is dict:
             meetDicts.append(list)
@@ -620,15 +713,14 @@ def getAllInfoFromRangeOfPages(start, limit):
 
     createJSONObjects(meetDicts)
 def createJSONObjects(list):
-    for dict in list:
-        json_obj = json.dumps(dict, indent=3)
-        print(json_obj)
+    with open("meets.json", "w") as final:
+        json.dump(list, final)
 
 def main():
     getAllInfoFromRangeOfPages(1,2)
     #getAllInfoFromRangeOfPages(2,4)
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21107/Southern_Conference_Cross_Country_Championship")
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20757/NJCAA_Region_XI_Cross_Country_Championships")
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20802/Golden_State_AC_Cross_Country_Championships")
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21188/NE_10_Cross-Country_Run_Championship")
 
 
 main()
