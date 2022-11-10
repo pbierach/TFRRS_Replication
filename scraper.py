@@ -1,7 +1,8 @@
 import urllib.request
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+import json
+#from selenium import webdriver
+#from selenium.webdriver.chrome.service import Service
 
 '''
 This function reads in a webpage and returns a list
@@ -595,28 +596,12 @@ def convertDateToSQL(date):
     return year + "-" + month + "-" + day
 
 '''
-This function takes an upper limit for a range
+This function takes a starting number and upper limit for a range
 and gets all of the information for the meets listed
-on search pages 1 to upper limit from tfrrs
-Args: int of upper limit 
+on search pages start to upper limit from tfrrs
+Args: int, of start, int of upper limit 
 Returns: 
 '''
-def getAllInfoFromRangeOfPages(limit):
-    links = []
-    for i in range(1, limit):
-        links.extend(getMeetLinks("https://www.tfrrs.org/results_search_page.html?page=" + str(i)
-                     + "&search_query=&with_month=&with_sports=xc&with_states=&with_year="))
-
-    print(links)
-    for i in range(len(links)):
-        list = getRaceInfoFromPage(links[i])
-        if type(list) is dict:
-            print(list)
-        else:
-            print(list[0])
-            print(list[1])
-
-
 def getAllInfoFromRangeOfPages(start, limit):
     links = []
     for i in range(start, limit):
@@ -624,18 +609,24 @@ def getAllInfoFromRangeOfPages(start, limit):
                      + "&search_query=&with_month=&with_sports=xc&with_states=&with_year="))
 
     print(links)
+    meetDicts = []
     for i in range(len(links)):
         list = getRaceInfoFromPage(links[i])
         if type(list) is dict:
-            print(list)
+            meetDicts.append(list)
         else:
-            print(list[0])
-            print(list[1])
+            meetDicts.append(list[0])
+            meetDicts.append(list[1])
 
+    createJSONObjects(meetDicts)
+def createJSONObjects(list):
+    for dict in list:
+        json_obj = json.dumps(dict, indent=3)
+        print(json_obj)
 
 def main():
-    #getAllInfoFromRangeOfPages(2)
-    getAllInfoFromRangeOfPages(2,4)
+    getAllInfoFromRangeOfPages(1,2)
+    #getAllInfoFromRangeOfPages(2,4)
     #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21107/Southern_Conference_Cross_Country_Championship")
     #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20757/NJCAA_Region_XI_Cross_Country_Championships")
 
