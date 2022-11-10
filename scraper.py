@@ -32,8 +32,9 @@ def getMeetLinks(url):
     tbody = soup.find_all('tbody')
     allA = tbody[0].find_all('a')
     for a in allA:
-        fullLink = "https://www.tfrrs.org" + a.get('href')
-        links.append(fullLink)
+        if a.get('href') != "/results/xc/20453/Lewis__Clark_Time_Trials" and not "NJCAA" in a.get('href'):
+            fullLink = "https://www.tfrrs.org" + a.get('href')
+            links.append(fullLink)
     return links
 
 
@@ -189,6 +190,7 @@ Return: list containing either gender of race and dictionary for race or
 def getRaceEvents(soup):
     keys = ["name", "date", "venue", "location", "gender", "event", "team", "ind"]
     eventList = soup.find_all("ol", "inline-list pl-0 pt-5 events-list")[0].find_all("a")
+    parenthEvent = soup.find_all("h3", "font-weight-500")
     genders = []
     #case: only one gender
     if len(eventList) == 1:
@@ -197,52 +199,23 @@ def getRaceEvents(soup):
             genders = ["Women"]
             wRace = dict.fromkeys(keys)
             wRace["gender"] = "women"
-            wEvent = eventList[0].text
-            endOfGender = wEvent.find("n")
-            if (endOfGender + 1 > len(wEvent)):
-                wRace["event"] = "6k"
-            else:
-                # case: word is Women
-                if wEvent[endOfGender + 1] == " ":
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Women's
-                elif wEvent[endOfGender + 1] == "'":
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Womens
-                else:
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                return [genders, wRace]
+            wEvent = parenthEvent[0].text
+            openP = wEvent.find("(") + 1
+            closeP = wEvent.find(")")
+            wRace["event"] = wEvent
+            return [genders, wRace]
 
         #case: single gender is men's
         elif "Men" in eventList[0].text:
             genders = ["Men"]
             mRace = dict.fromkeys(keys)
             mRace["gender"] = "Men"
-            mEvent = eventList[0].text
-            endOfGender = mEvent.find("n")
-            if (endOfGender + 1 > len(mEvent)):
-                mRace["event"] = "8k"
-            else:
-                # case: word is Men
-                if mEvent[endOfGender + 1] == " ":
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Men's
-                elif mEvent[endOfGender + 1] == "'":
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Mens
-                else:
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                return [genders, mRace]
+            mEvent = parenthEvent[0].text
+            openP = mEvent.find("(") + 1
+            closeP = mEvent.find(")")
+            mEvent = mEvent[openP:closeP]
+            mRace["event"] = mEvent
+            return [genders, mRace]
     #case: both genders
     else:
         genders = ["Men", "Women"]
@@ -253,87 +226,29 @@ def getRaceEvents(soup):
         wRace["gender"] = "women"
         #case: women are first
         if "Women" in eventList[0].text:
-            mEvent = eventList[1].text
-            endOfGender = mEvent.find("n")
-            # case: no event is listed, just gender
-            if (endOfGender + 1 > len(mEvent)):
-                mRace["event"] = "8k"
-            else:
-                # case: word is Men
-                if mEvent[endOfGender + 1] == " ":
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Men's
-                elif mEvent[endOfGender + 1] == "'":
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Mens
-                else:
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-            wEvent = eventList[0].text
-            endOfGender = wEvent.find("n")
-            if (endOfGender + 1 > len(wEvent)):
-                wRace["event"] = "6k"
-            else:
-                # case: word is Women
-                if wEvent[endOfGender + 1] == " ":
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Women's
-                elif wEvent[endOfGender + 1] == "'":
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Womens
-                else:
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
+            mEvent = parenthEvent[2].text
+            openP = mEvent.find("(")+1
+            closeP = mEvent.find(")")
+            mEvent = mEvent[openP:closeP]
+            mRace["event"] = mEvent
+            wEvent = parenthEvent[0].text
+            openP = wEvent.find("(") + 1
+            closeP = wEvent.find(")")
+            wRace["event"] = wEvent
+
         #case: women are second
         else:
             womenFirst = False
-            mEvent = eventList[0].text
-            endOfGender = mEvent.find("n")
-            #case: no event is listed, just gender
-            if(endOfGender+1 >= len(mEvent)):
-                mRace["event"] = "8k"
-            else:
-                #case: word is Men
-                if mEvent[endOfGender + 1] == " ":
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Men's
-                elif mEvent[endOfGender + 1] == "'":
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-                # case: word is Mens
-                else:
-                    endOfGender = mEvent.find("s")
-                    mEvent = mEvent[endOfGender + 1:].strip()
-                    mRace["event"] = mEvent
-            wEvent = eventList[1].text
-            endOfGender = wEvent.find("n")
-            if (endOfGender + 1 >= len(wEvent)):
-                wRace["event"] = "6k"
-            else:
-                # case: word is Women
-                if wEvent[endOfGender + 1] == " ":
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Women's
-                elif wEvent[endOfGender + 1] == "'":
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
-                # case: word is Womens
-                else:
-                    endOfGender = wEvent.find("s")
-                    wEvent = wEvent[endOfGender + 1:].strip()
-                    wRace["event"] = wEvent
+            mEvent = parenthEvent[0].text
+            openP = mEvent.find("(") + 1
+            closeP = mEvent.find(")")
+            mEvent = mEvent[openP:closeP]
+            mRace["event"] = mEvent
+            wEvent = parenthEvent[2].text
+            openP = wEvent.find("(") + 1
+            closeP = wEvent.find(")")
+            wRace["event"] = wEvent
+
     return [genders, mRace, wRace, womenFirst]
 
 '''
@@ -439,6 +354,7 @@ Return: updated dict for team results
 '''
 def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
     thaddeusMeets = ["Region XIX Championships", "NJCAA Division III Cross Country Championship"]
+    sharedWords = ["St.", "Angel", "Diego", "Santiago"]
     if meetName in thaddeusMeets:
         listOfTeamNames.append("Thaddeus Stevens")
     year = ["FR-1","SO-2","JR-3","SR-4"]
@@ -453,7 +369,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
             name = ""
             # check for name and stop at year in school (if given)
             # checks if still on name (given that year is in standard format (i.e. SR-4))
-            while results[i][0].isalpha() and not (results[i][-1].isdigit()):
+            while results[i][0].isalpha() and not (results[i][-1].isdigit()) and results[i] != "Unattached":
                 # this logical path first assumes that dealing with year and not name
                 # if its in standard form append it to the dict
                 if results[i] in year:
@@ -461,8 +377,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
                     break
                 else:
                     # written out as a string
-                    if len(results[i]) > 4 and (
-                            results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
+                    if len(results[i]) > 4 and (results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i].upper() == "JUNIOR" or results[i].upper() == "SENIOR"):
                         ind["year"].append(yearToGrade[results[i]])
                         break
                     elif len(results[i]) == 4 and results[i][0] == "2":
@@ -472,7 +387,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
                         break
                 # in case of no grade listed, check if name is in list of team names to stop
                 sub = results[i]
-                if any(sub in name for name in listOfTeamNames) and sub != "St.":
+                if any(sub in name for name in listOfTeamNames) and not (sub in sharedWords) or sub[0:3] == "UNA":
                     noGrade = True
                     break
                 else:
@@ -499,7 +414,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
             name = ""
             #check for name and stop at year in school (if given)
             #checks if still on name (given that year is in standard format (i.e. SR-4))
-            while results[i][0].isalpha() and not (results[i][-1].isdigit()) :
+            while results[i][0].isalpha() and not (results[i][-1].isdigit()) and results[i] != "Unattached" :
                 #this logical path first assumes that dealing with year and not name
                 #if its in standard form append it to the dict
                 if results[i] in year:
@@ -517,7 +432,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
                         break
                 #in case of no grade listed, check if name is in list of team names to stop
                 sub = results[i]
-                if any(sub in name for name in listOfTeamNames) and sub != "St.":
+                if any(sub in name for name in listOfTeamNames) and not (sub in sharedWords) or sub[0:3] == "UNA":
                     noGrade = True
                     break
                 else:
@@ -702,10 +617,27 @@ def getAllInfoFromRangeOfPages(limit):
             print(list[1])
 
 
+def getAllInfoFromRangeOfPages(start, limit):
+    links = []
+    for i in range(start, limit):
+        links.extend(getMeetLinks("https://www.tfrrs.org/results_search_page.html?page=" + str(i)
+                     + "&search_query=&with_month=&with_sports=xc&with_states=&with_year="))
+
+    print(links)
+    for i in range(len(links)):
+        list = getRaceInfoFromPage(links[i])
+        if type(list) is dict:
+            print(list)
+        else:
+            print(list[0])
+            print(list[1])
+
+
 def main():
-    getAllInfoFromRangeOfPages(2)
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20809/Sooner_AC_Cross_Country_Championships")
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21101/NorCal_Championships")
+    #getAllInfoFromRangeOfPages(2)
+    getAllInfoFromRangeOfPages(2,4)
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21107/Southern_Conference_Cross_Country_Championship")
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20757/NJCAA_Region_XI_Cross_Country_Championships")
 
 
 main()
