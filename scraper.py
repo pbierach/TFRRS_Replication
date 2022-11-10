@@ -82,7 +82,7 @@ def singleGenderRace(soup, race):
     race["team"] = list[0]
     listTeams = list[1]
     year = race["date"][0:5]
-    race["ind"] = getIndResultsFromPageSingle(soup, year, listTeams)
+    race["ind"] = getIndResultsFromPageSingle(soup, year, listTeams, race["name"])
     return race
 
 def bothGenderRace(soup, mRace, wRace, womenFirst):
@@ -105,7 +105,7 @@ def bothGenderRace(soup, mRace, wRace, womenFirst):
     listMTeams = list[2]
     listWTeams = list[3]
     year = mRace["date"][0:5]
-    list = getIndResultsFromPage(soup, womenFirst, year, listMTeams, listWTeams)
+    list = getIndResultsFromPage(soup, womenFirst, year, listMTeams, listWTeams, mRace["name"])
     mRace["ind"] = list[0]
     wRace["ind"] = list[1]
     return [mRace, wRace]
@@ -143,33 +143,40 @@ Return: list of dictionaries
 '''
 def getRaceLocation(soup, men, women):
     location = soup.find_all("div", "panel-heading-normal-text inline-block")
-    venue = ""
-    place = ""
-    ifPlace = False
-    for div in location:
-        if (ifPlace):
-            venue = div.text
-            venue = venue.strip()
-        ifPlace = True
+    check = str(location[1])
+    if check.count("\n") == 1:
+        men["venue"] = "None given"
+        women["venue"] = "None given"
+        men["location"] = "None given"
+        women["location"] = "None given"
+    else:
+        venue = ""
+        place = ""
+        ifPlace = False
+        for div in location:
+            if (ifPlace):
+                venue = div.text
+                venue = venue.strip()
+            ifPlace = True
 
 
-    locationIndex = venue.find("\n")
-    location = venue[locationIndex+1:len(venue)].strip()
-    venue = venue[0:locationIndex]
-    cut = None
-    for i, char in enumerate(location):
-        if char.isdigit():
-            cut = i
-            break
-    place = location[0:cut].strip()
-    while place.find("\n") > 0:
-        newLine = place.find("\n")
-        place = place[newLine:len(place)].strip()
+        locationIndex = venue.find("\n")
+        location = venue[locationIndex+1:len(venue)].strip()
+        venue = venue[0:locationIndex]
+        cut = None
+        for i, char in enumerate(location):
+            if char.isdigit():
+                cut = i
+                break
+        place = location[0:cut].strip()
+        while place.find("\n") > 0:
+            newLine = place.find("\n")
+            place = place[newLine:len(place)].strip()
 
-    men["venue"] = venue
-    women["venue"] = venue
-    men["location"] = place
-    women["location"] = place
+        men["venue"] = venue
+        women["venue"] = venue
+        men["location"] = place
+        women["location"] = place
     return [men, women]
 
 '''
@@ -291,7 +298,7 @@ def getRaceEvents(soup):
             mEvent = eventList[0].text
             endOfGender = mEvent.find("n")
             #case: no event is listed, just gender
-            if(endOfGender+1 > len(mEvent)):
+            if(endOfGender+1 >= len(mEvent)):
                 mRace["event"] = "8k"
             else:
                 #case: word is Men
@@ -310,7 +317,7 @@ def getRaceEvents(soup):
                     mRace["event"] = mEvent
             wEvent = eventList[1].text
             endOfGender = wEvent.find("n")
-            if (endOfGender + 1 > len(wEvent)):
+            if (endOfGender + 1 >= len(wEvent)):
                 wRace["event"] = "6k"
             else:
                 # case: word is Women
@@ -404,7 +411,7 @@ individual performances as a part of a given dictionary
 Arg: url of the page, boolean if Women's results were first on page
 Return: list of dictionaries 
 '''
-def getIndResultsFromPage(soup, womenFirst, year, mTeams, wTeams):
+def getIndResultsFromPage(soup, womenFirst, year, mTeams, wTeams, meetName):
     keys = ["place", "name", "year", "team", "time"]
     mInd = {keys[0]: [], keys[1]: [], keys[2]: [], keys[3]: [], keys[4]: []}
     wInd = {keys[0]: [], keys[1]: [], keys[2]: [], keys[3]: [], keys[4]: []}
@@ -418,8 +425,10 @@ def getIndResultsFromPage(soup, womenFirst, year, mTeams, wTeams):
         wResults = teamResults[3].text.split()
 
     # get data from relevant html
-    mInd = scrapeIndResults(mResults, mInd, year, mTeams)
-    wInd = scrapeIndResults(wResults, wInd, year, wTeams)
+    allTeams = set(mTeams).union(set(wTeams))
+    allTeams = list(allTeams)
+    mInd = scrapeIndResults(mResults, mInd, year, allTeams, meetName)
+    wInd = scrapeIndResults(wResults, wInd, year, allTeams, meetName)
     return [mInd, wInd]
 
 '''
@@ -428,11 +437,13 @@ and returns them as a part of a given dictionary
 Arg: BS4 object of team html lines, dictionary for individual results
 Return: updated dict for team results 
 '''
-def scrapeIndResults(results, ind, currYear, listOfTeamNames):
-    listOfTeamNames.append("Thaddeus Stevens")
+def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
+    thaddeusMeets = ["Region XIX Championships", "NJCAA Division III Cross Country Championship"]
+    if meetName in thaddeusMeets:
+        listOfTeamNames.append("Thaddeus Stevens")
     year = ["FR-1","SO-2","JR-3","SR-4"]
     yearToGrade = {"Freshman":"FR-1", "Sophomore":"SO-2", "Junior":"JR-3", "Senior":"SR-4" }
-    dateToGrade = {4:"FR-1",3:"SO-2",2:"JR-3",1:"SR-4"}
+    dateToGrade = {4:"FR-1",3:"SO-2",2:"JR-3",1:"SR-4",0:"SR-4"}
     i = 0
     noGrade = False
     while i < len(results)-1:
@@ -471,7 +482,7 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames):
             school = ""
             i += 1
             # find school name
-            while results[i][0].isalpha() and "DN" not in results[i]:
+            while (results[i][0].isalpha() or results[i][0] == "&") and "DN" not in results[i]:
                 if results[i] == "DQ":
                     break
                 school = school + results[i] + " "
@@ -515,7 +526,18 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames):
             ind["name"].append(name.strip())
             school = ""
             if noGrade == False:
+                if results[i] in year:
+                    ind["year"].append(results[i])
+                else:
+                    # written out as a string
+                    if len(results[i]) > 4 and (results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
+                        ind["year"].append(yearToGrade[results[i]])
+                    elif len(results[i]) == 4 and results[i][0] == "2":
+                        # kept as year of graduation
+                        diff = int(results[i]) - int(currYear)
+                        ind["year"].append(dateToGrade[diff])
                 i += 1
+
             #find school name
             while results[i][0].isalpha()  or results[i][0] == "(" or results[i][0] == "&" or results[i][0] == "-":
                 school = school + results[i] + " "
@@ -528,7 +550,9 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames):
             #skip potential score
             if i < len(results)-1 and len(results[i]) <= 3:
                 if int(results[i]) != 0 and ( int(results[i]) != place+1 or int(results[i]) == place ):
-                    i += 1
+                    #in case of tie, then the next place would be 2 ahead
+                    if int(results[i]) != place+2 :
+                        i += 1
             #skip any splits that the data may have
             while i < len(results)-1 and len(results[i]) > 6:
                 i += 1
@@ -620,7 +644,7 @@ individual performances as a part of a given dictionary
 Arg: url of the page, boolean if Women's results were first on page
 Return: list of dictionaries 
 '''
-def getIndResultsFromPageSingle(soup, year, teams):
+def getIndResultsFromPageSingle(soup, year, teams, name):
     keys = ["place", "name", "year", "team", "time"]
     ind = {keys[0]: [], keys[1]: [], keys[2]: [], keys[3]: [], keys[4]: []}
 
@@ -628,7 +652,7 @@ def getIndResultsFromPageSingle(soup, year, teams):
     results = teamResults[1].text.split()
 
     # get data from relevant html
-    ind = scrapeIndResults(results, ind, year, teams)
+    ind = scrapeIndResults(results, ind, year, teams, name)
     return ind
 
 
@@ -679,9 +703,9 @@ def getAllInfoFromRangeOfPages(limit):
 
 
 def main():
-    #getAllInfoFromRangeOfPages(2)
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20660/CCAA_Cross_Country_Championships")
-    getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21189/Saint_Francis_University_Red_Flash_Rally")
+    getAllInfoFromRangeOfPages(2)
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20809/Sooner_AC_Cross_Country_Championships")
+    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21101/NorCal_Championships")
 
 
 main()
