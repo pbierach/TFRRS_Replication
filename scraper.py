@@ -378,9 +378,9 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
     sharedWords = ["St.", "Angel", "Diego", "Santiago", "Frank", "Francis", "Mary"]
     if meetName in thaddeusMeets:
         listOfTeamNames.append("Thaddeus Stevens")
-    year = ["FR-1","SO-2","JR-3","SR-4"]
-    yearToGrade = {"Freshman":"FR-1", "Sophomore":"SO-2", "Junior":"JR-3", "Senior":"SR-4" }
-    dateToGrade = {4:"FR-1",3:"SO-2",2:"JR-3",1:"SR-4",0:"SR-4"}
+    year = ["FR-1", "SO-2", "JR-3", "SR-4"]
+    yearToGrade = {"Freshman": "FR-1", "Sophomore":"SO-2", "Junior": "JR-3", "Senior": "SR-4" }
+    dateToGrade = {4: "FR-1", 3: "SO-2", 2: "JR-3", 1: "SR-4", 0: "SR-4"}
     nonScorers = 0
     i = 0
     noGrade = False
