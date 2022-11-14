@@ -297,32 +297,43 @@ def scrapeTeamResults(results, team):
     listOfScorers = []
     i = 0
     while i+7 <= len(results)-1:
+        dnf = False
         #team place
         listOfPlaces.append(results[i])
         i += 1
         #get name
         name = ""
-        while results[i][0].isalpha() or results[i][0] == "(" or results[i][0] == "&" or results[i][0] == "-":
-            name += " " + results[i]
-            i += 1
+        while (results[i][0].isalpha() or results[i][0] == "(" or results[i][0] == "&" or results[i][0] == "-"):
+            if results[i] == "DNF":
+                dnf = True
+                break
+            else:
+                name += " " + results[i]
+                i += 1
         listOfTeams.append(name.strip())
-        #score is always 2 lines away from the end of name
-        i += 2
-        listOfPoints.append(results[i])
-        i += 1
-        #get the scores of the runners that ran (not always top 7)
-        scorers = []
-        #if statement that checks if last team is being checked so it can avoid an out of bounds error
-        if i + 10 >= len(results):
-            while i <= len(results)-1:
-                scorers.append(results[i])
-                i += 1
+        if dnf:
+            listOfPoints.append(results[i])
+            listOfPlaces.append(results[i])
+            listOfScorers.append(results[i])
+            i+=1
         else:
-            while i+2 < len(results)-1 and results[i+2].isdigit():
-                scorers.append(results[i])
-                i += 1
-        listOfScorers.append(scorers)
-        i += 1
+            #score is always 2 lines away from the end of name
+            i += 2
+            listOfPoints.append(results[i])
+            i += 1
+            #get the scores of the runners that ran (not always top 7)
+            scorers = []
+            #if statement that checks if last team is being checked so it can avoid an out-of-bounds error
+            if i + 10 >= len(results):
+                while i <= len(results)-1:
+                    scorers.append(results[i])
+                    i += 1
+            else:
+                while i+2 < len(results)-1 and results[i+2].isdigit():
+                    scorers.append(results[i])
+                    i += 1
+            listOfScorers.append(scorers)
+            i += 1
 
     team["place"] = listOfPlaces
     team["team"] = listOfTeams
@@ -364,7 +375,7 @@ Return: updated dict for team results
 '''
 def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
     thaddeusMeets = ["Region XIX Championships", "NJCAA Division III Cross Country Championship"]
-    sharedWords = ["St.", "Angel", "Diego", "Santiago", "Frank", "Francis"]
+    sharedWords = ["St.", "Angel", "Diego", "Santiago", "Frank", "Francis", "Mary"]
     if meetName in thaddeusMeets:
         listOfTeamNames.append("Thaddeus Stevens")
     year = ["FR-1","SO-2","JR-3","SR-4"]
@@ -475,97 +486,23 @@ def scrapeIndResults(results, ind, currYear, listOfTeamNames, meetName):
             ind["time"].append(results[i])
             i += 1
             #skip potential score
-            #runner is a nonscorer but has splits
-            if i < len(results) - 1 and len(results[i]) > 6:
-                nonScorers += 1
-                while i < len(results) - 1 and len(results[i]) > 6:
-                    i += 1
-            elif i < len(results)-1 and len(results[i]) <= 3:
-                #score
-                #splits come and mess something up
-                if len(results[i+1]) > 3 and results[i+1][0].isdigit():
-                    i+=1
-                    while i < len(results) - 1 and len(results[i]) > 6:
-                        i += 1
-                # there's a tie
-                if i < len(results)-1 and int(results[i]) == place and int(results[i+1]) == place:
-                    #skip score (on place)
-                    i += 1
-                    #process person normally
-                    # first element is place
-                    place = int(results[i])
-                    ind["place"].append(results[i])
-                    i += 1
-                    name = ""
-                    # check for name and stop at year in school (if given)
-                    # checks if still on name (given that year is in standard format (i.e. SR-4))
-                    while results[i][0].isalpha() and not (results[i][-1].isdigit()) and results[i] != "Unattached":
-                        # this logical path first assumes that dealing with year and not name
-                        # if its in standard form append it to the dict
-                        if results[i] in year:
-                            ind["year"].append(results[i])
-                            break
-                        else:
-                            # written out as a string
-                            if len(results[i]) > 4 and (
-                                    results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
-                                ind["year"].append(yearToGrade[results[i]])
-                                break
-                            elif len(results[i]) == 4 and results[i][0] == "2":
-                                # kept as year of graduation
-                                diff = int(results[i]) - int(currYear)
-                                ind["year"].append(dateToGrade[diff])
-                                break
-                        # in case of no grade listed, check if name is in list of team names to stop
-                        sub = results[i]
-                        if any(sub in name for name in listOfTeamNames) and not (sub in sharedWords) or sub[0:3] == "UNA":
-                            noGrade = True
-                            break
-                        else:
-                            name = name + results[i] + " "
-                            i += 1
-                    ind["name"].append(name.strip())
-                    school = ""
-                    if noGrade == False:
-                        if results[i] in year:
-                            ind["year"].append(results[i])
-                        else:
-                            # written out as a string
-                            if len(results[i]) > 4 and (
-                                    results[i].upper() == "FRESHMAN" or results[i].upper() == "SOPHOMORE" or results[i] == "JUNIOR" or results[i] == "SENIOR"):
-                                ind["year"].append(yearToGrade[results[i]])
-                            elif len(results[i]) == 4 and results[i][0] == "2":
-                                # kept as year of graduation
-                                diff = int(results[i]) - int(currYear)
-                                ind["year"].append(dateToGrade[diff])
-                        i += 1
-
-                    # find school name
-                    while results[i][0].isalpha() or results[i][0] == "(" or results[i][0] == "&" or results[i][0] == "-":
-                        school = school + results[i] + " "
-                        i += 1
-                    ind["team"].append(school.strip())
-                    # skip avg mile time
-                    i += 1
-                    ind["time"].append(results[i])
-                    i += 1
-                    #skip score
-                    if int(results[i]) == place or int(results[i]) == place+1:
-                        i += 1
-                #no tie
-                else:
-                    if i == len(results)-1:
-                        break
-                    #normal scoring
-                    if int(results[i]) == place or int(results[i]) == place - nonScorers and place+1 != int(results[i]):
-                        i += 1
-                    #non-scoring individual and results[i] is next persons place
-                    elif int(results[i]) == place+1 :
-                        nonScorers += 1
-            #skip any splits that the data may have
-            while i < len(results)-1 and len(results[i]) > 6:
+            #runner is a scorer and has no splits
+            if i+2 < len(results) and (results[i].isdigit() and results[i+1].isdigit() and results[i+2].isalpha()):
                 i += 1
-            noGrade = False
+            #runner is a nonscorer and has splits
+            #already on split
+            elif (results[i][0].isdigit() or results[i][0] == "(") and len(results[i+1]) > 6:
+                nonScorers += 1
+                while (results[i][0].isdigit() or results[i][0] == "(") and len(results[i])>6:
+                    i += 1
+            #runner is a scorer and has splits
+            elif (results[i].isdigit() and len(results[i]) <= 3) and ( (results[i][0].isdigit() or results[i][0] == "(") and len(results[i+1]) > 6):
+                i += 1 #skip score
+                while (results[i][0].isdigit() or results[i][0] == "(") and len(results[i]) > 6:
+                    i += 1
+            #runner is a nonscorer and has no splits
+            else:
+                nonScorers += 1
     return ind
 
 ########################################################################################################################
@@ -707,19 +644,22 @@ def getAllInfoFromRangeOfPages(start, limit):
         list = getRaceInfoFromPage(links[i])
         if type(list) is dict:
             meetDicts.append(list)
+            print("done")
         else:
             meetDicts.append(list[0])
             meetDicts.append(list[1])
+            print("done")
+    print("page done")
 
-    createJSONObjects(meetDicts)
+    #createJSONObjects(meetDicts)
 def createJSONObjects(list):
     with open("meets.json", "w") as final:
         json.dump(list, final)
 
 def main():
-    getAllInfoFromRangeOfPages(1,2)
+    #getAllInfoFromRangeOfPages(1,6)
     #getAllInfoFromRangeOfPages(2,4)
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20802/Golden_State_AC_Cross_Country_Championships")
+    getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20818/NCAA_Division_I_South_Region_Cross_Country_Championships")
     #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/21188/NE_10_Cross-Country_Run_Championship")
 
 
