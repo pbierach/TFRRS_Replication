@@ -441,12 +441,45 @@ def createJSONObjects(list):
     with open("meets.json", "w") as final:
         json.dump(list, final)
 
+def getConfLists():
+    divisons = ['d1', 'd2', 'd3', 'naia']
+    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(options=options, service=s)
+
+    for div in divisons:
+        link = "https://www.tfrrs.org/directory_tab.html?outdoor=0&tab="+div+"&year=2022"
+        driver.get(link)
+        ul = driver.find_element(By.CLASS_NAME, "list-unstyled.pl-24.mt-5")
+        getConfNames(ul)
+
+def getConfNames(htmlElem):
+    confName = []
+    regionName = []
+    lines = htmlElem.find_elements(By.TAG_NAME, "li")
+    qualListLine = 0
+    for li in lines:
+        if qualListLine == 0:
+            qualListLine += 1
+        elif "Region" in li.text:
+            line = li.text.replace("w | m", "")
+            regionName.append(line.strip())
+        else:
+            line = li.text.replace("w | m", "")
+            confName.append(line.strip())
+
+    return [confName, regionName]
+
+
 def main():
     s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options, service=s)
+    getConfLists()
     #print(getAllInfoFromRangeOfPages(1, 6))
     #getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/20794/American_Midwest_Conference_Cross_Country_Championships')
     #list = getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/20453/Lewis__Clark_Time_Trials')
