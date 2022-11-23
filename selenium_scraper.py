@@ -1,7 +1,8 @@
+import time
 import urllib.request
 from bs4 import BeautifulSoup
-import json
 from selenium import webdriver
+from selenium.webdriver import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -448,16 +449,25 @@ def getConfLists():
     options.add_argument("--headless")
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options, service=s)
-
+    conferences = {
+        'divison': [],
+        'name': []
+    }
+    regions = {
+        'divison': [],
+        'name': []
+    }
     for div in divisons:
         link = "https://www.tfrrs.org/directory_tab.html?outdoor=0&tab="+div+"&year=2022"
         driver.get(link)
         ul = driver.find_element(By.CLASS_NAME, "list-unstyled.pl-24.mt-5")
-        getConfNames(ul)
+        list = getConfNames(ul, div, conferences, regions)
+        conferences = list[0]
+        regions = list[1]
 
-def getConfNames(htmlElem):
-    confName = []
-    regionName = []
+    return [conferences, regions]
+
+def getConfNames(htmlElem, div, c, r):
     lines = htmlElem.find_elements(By.TAG_NAME, "li")
     qualListLine = 0
     for li in lines:
@@ -465,13 +475,32 @@ def getConfNames(htmlElem):
             qualListLine += 1
         elif "Region" in li.text:
             line = li.text.replace("w | m", "")
-            regionName.append(line.strip())
+            r['divison'].append(div)
+            r['name'].append(line.strip())
         else:
             line = li.text.replace("w | m", "")
-            confName.append(line.strip())
+            c['divison'].append(div)
+            c['name'].append(line.strip())
+    return [c, r]
 
-    return [confName, regionName]
-
+def goToConfRegionPage(c, r):
+    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(options=options,service=s)
+    driver.get('https://www.tfrrs.org/')
+    links = []
+    for name in c['name']:
+        confButton = driver.find_elements(By.CLASS_NAME, 'waves-effect.waves-classic')
+        #reveal conference search field
+        webdriver.ActionChains(driver).move_to_element(confButton[1]).perform()
+        #click on conference search, input conference/region, search
+        searchInput = driver.find_element(By.ID, 'conference_search')
+        searchInput.send_keys(name)
+        searchInput.send_keys(Keys.ENTER)
+        links.append(driver.current_url)
+    return links
 
 def main():
     s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
@@ -479,7 +508,9 @@ def main():
     options.add_argument("--headless")
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options, service=s)
-    getConfLists()
+    #getConfLists()
+    getConfDetails(getConfLists()[0], "test")
+
     #print(getAllInfoFromRangeOfPages(1, 6))
     #getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/20794/American_Midwest_Conference_Cross_Country_Championships')
     #list = getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/20453/Lewis__Clark_Time_Trials')
