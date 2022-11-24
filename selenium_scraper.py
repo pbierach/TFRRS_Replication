@@ -442,6 +442,12 @@ def createJSONObjects(list):
     with open("meets.json", "w") as final:
         json.dump(list, final)
 
+'''
+This function scrapes the indoor conference/region lists
+in order to create dictionaries for all conferences and regions in each divison
+Arg: none
+Return: list of dictionaries representing conferences and regions 
+'''
 def getConfLists():
     divisons = ['d1', 'd2', 'd3', 'naia']
     s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
@@ -451,11 +457,15 @@ def getConfLists():
     driver = webdriver.Chrome(options=options, service=s)
     conferences = {
         'divison': [],
-        'name': []
+        'name': [],
+        'teams': [],
+        'gender': 'men'
     }
     regions = {
         'divison': [],
-        'name': []
+        'name': [],
+        'teams': [],
+        'gender': 'men'
     }
     for div in divisons:
         link = "https://www.tfrrs.org/directory_tab.html?outdoor=0&tab="+div+"&year=2022"
@@ -467,6 +477,12 @@ def getConfLists():
 
     return [conferences, regions]
 
+'''
+This function takes the list of conference/region names 
+from a page and scrapes the name of all the individual conf/regions
+Arg: selenium html element of list of conf/region, current divison, dictionary of conference and region
+Return: list of updated dictionaries representing conferences and regions 
+'''
 def getConfNames(htmlElem, div, c, r):
     lines = htmlElem.find_elements(By.TAG_NAME, "li")
     qualListLine = 0
@@ -483,7 +499,12 @@ def getConfNames(htmlElem, div, c, r):
             c['name'].append(line.strip())
     return [c, r]
 
-def goToConfRegionPage(c, r):
+'''
+This function navigates to a given conference or region page on the tfrrs site
+Arg: name of requested conference/region
+Return: selenium chrome driver on requested conference/region's page  
+'''
+def goToConfRegionPage(name):
     s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
     options = Options()
     options.add_argument("--headless")
@@ -491,16 +512,70 @@ def goToConfRegionPage(c, r):
     driver = webdriver.Chrome(options=options,service=s)
     driver.get('https://www.tfrrs.org/')
     links = []
-    for name in c['name']:
-        confButton = driver.find_elements(By.CLASS_NAME, 'waves-effect.waves-classic')
-        #reveal conference search field
-        webdriver.ActionChains(driver).move_to_element(confButton[1]).perform()
-        #click on conference search, input conference/region, search
-        searchInput = driver.find_element(By.ID, 'conference_search')
-        searchInput.send_keys(name)
-        searchInput.send_keys(Keys.ENTER)
-        links.append(driver.current_url)
-    return links
+    confButton = driver.find_elements(By.CLASS_NAME, 'waves-effect.waves-classic')
+    #reveal conference search field
+    webdriver.ActionChains(driver).move_to_element(confButton[1]).perform()
+    #click on conference search, input conference/region, search
+    searchInput = driver.find_element(By.ID, 'conference_search')
+    searchInput.send_keys(name)
+    searchInput.send_keys(Keys.ENTER)
+    return driver
+
+'''
+This function scrapes the indoor conference/region lists
+in order to create dictionaries for all conferences and regions in each divison
+Arg: conference/region's page on tfrrs (as selenium webDriver), dictionaries for men and women
+Return: list of updated dictionaries representing conferences and regions 
+'''
+def scrapeConfRegionPage(driver, m, w):
+    tableData = driver.find_element(By.CLASS_NAME, "tablesaw.table-striped.table-bordered.table-hover.tablesaw-columntoggle")
+    teamTable = tableData.text.split("\n")
+    firstElement = 0
+    wTeams = []
+    mTeams = []
+    for elem in teamTable:
+        if firstElement == 0:
+            firstElement += 1
+        elif elem[0] == " ":
+            wTeams.append(elem.strip())
+        else:
+            separated = elem.split(" ")
+            oneTeam = list(dict.fromkeys(separated))
+            team = ""
+            for string in oneTeam:
+                team = team + string + " "
+            wTeams.append(team.strip())
+            mTeams.append(team.strip())
+    m['teams'].append(mTeams)
+    w['teams'].append(wTeams)
+    return [m, w]
+
+'''
+Driver function to gather and scrape names and teams of all conferences and regions at
+d1, d2, d3, and naia levels 
+Arg: none
+Return: list of dictionaries representing conferences and regions 
+'''
+def confRegionDriver():
+    list = getConfLists()
+    mConf = list[0]
+    wConf = mConf.copy()
+    wConf['gender'] = 'women'
+    mRegions = list[1]
+    wRegions = mRegions.copy()
+    wRegions['gender'] = 'women'
+    for name in mConf["name"]:
+        driver = goToConfRegionPage(name)
+        list = scrapeConfRegionPage(driver, mConf, wConf)
+        mConf = list[0]
+        wConf = list[1]
+
+    for name in mRegions["name"]:
+        driver = goToConfRegionPage(name)
+        list = scrapeConfRegionPage(driver, mRegions, wRegions)
+        mRegions = list[0]
+        wRegions = list[1]
+    return [mConf, wConf, mRegions, wRegions]
 
 def main():
     s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
@@ -508,8 +583,7 @@ def main():
     options.add_argument("--headless")
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options, service=s)
-    #getConfLists()
-    getConfDetails(getConfLists()[0], "test")
+    confRegionDriver()
 
     #print(getAllInfoFromRangeOfPages(1, 6))
     #getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/20794/American_Midwest_Conference_Cross_Country_Championships')
