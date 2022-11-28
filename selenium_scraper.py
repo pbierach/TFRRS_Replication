@@ -1,11 +1,14 @@
 import time
 import urllib.request
+
+import selenium.common.exceptions
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from difflib import SequenceMatcher
 import json
 
 '''
@@ -22,15 +25,20 @@ def getAllInfoFromRangeOfPages(start, limit, c ,r):
     options.add_argument('--disable-gpu')
     driver = webdriver.Chrome(options=options, service=s)
     links = []
+    allRaces = []
     for i in range(start, limit):
         links.extend(getMeetLinks("https://www.tfrrs.org/results_search_page.html?page=" + str(i)
                      + "&search_query=&with_month=&with_sports=xc&with_states=&with_year="))
-    for link in links:
-        list = getRaceInfoFromPage(driver, link, c, r)
-        #check if race is national, regional, or conference championship
-        m = list[0]
-        w = list[1]
-    return links
+    for i, link in enumerate(links):
+        if i % 30 == 0 and i != 0:
+            print("Page done.")
+        results = getRaceInfoFromPage(driver, link, c, r)
+        if type(results) == dict:
+            allRaces.append(results)
+        elif type(results) == list:
+            allRaces.append(results[0])
+            allRaces.append(results[1])
+    return allRaces
 
 '''
 This function reads in a tfrrs search page
@@ -45,8 +53,11 @@ def getMeetLinks(url):
     tbody = soup.find_all('tbody')
     allA = tbody[0].find_all('a')
     for a in allA:
-        if not "NCCAA" in a.get('href'):
-            fullLink = "https://www.tfrrs.org" + a.get('href')
+        href = a.get('href')
+        nccaa = "NCCAA" in href
+        njcaa = "NJCAA" in href
+        if not nccaa ^ njcaa:
+            fullLink = "https://www.tfrrs.org" + href
             links.append(fullLink)
     return links
 
@@ -57,31 +68,30 @@ Arg: selenium webdriver, url of the page
 Return: list of dictionary of all meet information
 '''
 def getRaceInfoFromPage(driver, url, c, r):
-    print(url)
-    driver.get(url)
-    keys = ["name", "date", "venue", "location", "gender", "event", "national", "regional", "conference", "team", "ind"]
-    list = getRaceEvents(driver)
-    genders = list[0]
-    if len(genders) == 1:
-        if genders[0] == "Men":
-            mRace = list[1]
-            mRace = singleGenderRace(driver, mRace, c, r)
-            print("done")
-            return mRace
+    try:
+        driver.get(url)
+        keys = ["name", "date", "venue", "location", "gender", "event", "national", "regional", "conference", "team", "ind"]
+        list = getRaceEvents(driver)
+        genders = list[0]
+        if len(genders) == 1:
+            if genders[0] == "Men":
+                mRace = list[1]
+                mRace = singleGenderRace(driver, mRace, c, r)
+                return mRace
+            else:
+                wRace = list[1]
+                wRace = singleGenderRace(driver, wRace, c, r)
+                return wRace
         else:
+            mRace = list[1]
+            wRace = list[2]
+            womenFirst = list[3]
+            list = bothGenderRace(driver, mRace, wRace, womenFirst, c, r)
+            mRace = list[0]
             wRace = list[1]
-            wRace = singleGenderRace(driver, wRace, c, r)
-            print("done")
-            return wRace
-    else:
-        mRace = list[1]
-        wRace = list[2]
-        womenFirst = list[3]
-        list = bothGenderRace(driver, mRace, wRace, womenFirst, c, r)
-        mRace = list[0]
-        wRace = list[1]
-        print("done")
-        return [mRace, wRace]
+            return [mRace, wRace]
+    except:
+        print(url)
 
 '''
 This function takes a webdirver and determines how 
@@ -91,7 +101,7 @@ Return: list containing either gender of race and dictionary for race or
         list containing 2 dictionaries for races and if women are first in results 
 '''
 def getRaceEvents(driver):
-    keys = ["name", "date", "venue", "location", "gender", "event", "team", "ind"]
+    keys = ["name", "date", "venue", "location", "gender", "event", "conference", "regional", "national", "team", "ind"]
     eventList = driver.find_element(By.ID, 'quick-links-list')
     parenthEvent = driver.find_elements(By.CLASS_NAME, 'custom-table-title.custom-table-title-xc')
     #parenthEvent = parenthEvent.find_elements(By.CLASS_NAME, 'custom-table-title custom-table-title-xc')
@@ -221,26 +231,26 @@ Return: list of dictionaries
 def getRaceName(driver, race, c, r):
     name = driver.find_element(By.CLASS_NAME, "panel-title").text
     race["name"] = name
+    speicalMeetFound = False
     if "Championships" in name or "Championship" in name:
-        speicalMeetFound = False
         for n in c['name']:
             if n in name:
                 speicalMeetFound = True
                 race["conference"] = True
                 race["national"] = False
-                race["rgeional"] = False
+                race["regional"] = False
                 break
         for n in r['name']:
             if n in name:
                 speicalMeetFound = True
                 race["conference"] = False
                 race["national"] = False
-                race["rgeional"] = True
+                race["regional"] = True
                 break
         if speicalMeetFound is False and ("Division I" in name or "Division II" in name or "Division III" in name or "NAIA" in name):
             race["conference"] = False
             race["national"] = True
-            race["rgeional"] = False
+            race["regional"] = False
     return race
 
 '''
@@ -294,6 +304,8 @@ def getRaceLocation(driver, race):
         place = ""
         endOfDate = header.text.find("|")+1
         endOfLocation = header.text.find("\n")
+        if endOfLocation == -1:
+            endOfLocation = len(header.text)
         location = header.text[endOfDate:endOfLocation]
         if location[-1].isdigit():
             location = location[0:len(location)-6]
@@ -374,7 +386,10 @@ def scrapeTeamResults(results, team):
                 elif items == 5:
                     listOfPoints.append(tag.text)
                 elif items > 5:
-                    scorers.append(tag.text)
+                    if tag.text != " " or tag.text != "\u00a0":
+                        scorers.append(tag.text)
+                    else:
+                        break
         listOfScorers.append(scorers)
     team["place"] = listOfPlaces
     team["team"] = listOfTeams
@@ -461,10 +476,6 @@ def getSingleResultsFromPage(driver, year):
     ind = scrapeIndResults(iResultsRaw, ind, year)
     return [team, ind]
 
-def createJSONObjects(list):
-    with open("meets.json", "w") as final:
-        json.dump(list, final)
-
 '''
 This function scrapes the indoor conference/region lists
 in order to create dictionaries for all conferences and regions in each division
@@ -514,6 +525,9 @@ def getConfNames(htmlElem, div, c, r):
             qualListLine += 1
         elif "Region" in li.text:
             line = li.text.replace("w | m", "")
+            line = line.replace("DI", "Division I")
+            line = line.replace("DII", "Division II")
+            line = line.replace("DIII", "Division III")
             r['division'].append(div)
             r['name'].append(line.strip())
         else:
@@ -544,6 +558,9 @@ def goToConfRegionPage(name):
     searchInput.send_keys(Keys.ENTER)
     return driver
 
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
 '''
 This function scrapes the indoor conference/region lists
 in order to create dictionaries for all conferences and regions in each division
@@ -553,8 +570,18 @@ Return: list of updated dictionaries representing conferences and regions
 def scrapeConfRegionPage(driver, m, w, hrefs):
     tableData = driver.find_element(By.CLASS_NAME, "tablesaw.table-striped.table-bordered.table-hover.tablesaw-columntoggle")
     tableEntries = tableData.find_elements(By.TAG_NAME, "a")
-    for a in tableEntries:
-        hrefs.append(a.get_attribute("href"))
+    i = 0
+    while i < len(tableEntries)-1:
+        if i+1 < len(tableEntries):
+            curr = tableEntries[i].get_attribute('href')
+            next = tableEntries[i+1].get_attribute('href')
+            same = similar(curr[30:len(curr)], next[30:len(next)])
+            if same > 0.8:
+                hrefs.append(curr)
+                i = i + 2
+            else:
+                hrefs.append(tableEntries[i].get_attribute("href"))
+                i = i + 1
     teamTable = tableData.text.split("\n")
     firstElement = 0
     wTeams = []
@@ -609,6 +636,11 @@ def confRegionDriver():
     schools = schoolInfoDriver(teamHrefs, mConf)
     return [mConf, wConf, mRegions, wRegions, schools]
 
+'''
+Driver function to gather and scrape team information at the d1, d2, d3, and naia levels 
+Arg: link to school pages on tfrrs, dictionary of conference information
+Return: dictionary representing schools 
+'''
 def schoolInfoDriver(schoolLinks, conf):
     schools = {
         'name': [],
@@ -626,45 +658,95 @@ def schoolInfoDriver(schoolLinks, conf):
         schools = scrapeSchoolPage(driver, schools, conf)
     return schools
 
+'''
+Scraper function to gather team information from a tfrrs page  
+Arg: selenium driver at a tfrrs school page, dictionary of school information, dictionary of conference information 
+Return: list of dictionaries representing conferences and regions 
+'''
 def scrapeSchoolPage(driver, schools, c):
-    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(options=options, service=s)
-    driver.get('https://www.tfrrs.org/teams/xc/NY_college_m_Ithaca.html')
-    schools['name'].append(driver.find_element(By.ID, 'team-name').text)
-    groups = driver.find_element(By.CLASS_NAME, 'panel-heading-normal-text').text
-    groupList = groups.split(",")
-    cList = []
-    rList = []
-    for g in groupList:
-        if g in c['name']:
-            cList.append(g)
-        else:
-            space = g.find(" ")
-            div = g[0:space]
-            rList.append(g)
-    schools['division'].append(div)
-    schools['region'].append(rList)
-    schools['conference'].append(cList)
-    return schools
+    try:
+        schools['name'].append(driver.find_element(By.ID, 'team-name').text)
+    except selenium.common.exceptions.NoSuchElementException:
+        print(driver.current_url)
+        schools['name'].append('error')
+    finally:
+        groups = driver.find_element(By.CLASS_NAME, 'panel-heading-normal-text').text
+        groupList = groups.split(",")
+        cList = []
+        rList = []
+        div = "?"
+        for g in groupList:
+            for name in c['name']:
+                if name in g:
+                    cList.append(g)
+                    break
+            else:
+                g = g.strip()
+                space = g.find(" ")
+                div = g[0:space]
+                rList.append(g)
+        schools['division'].append(div)
+        schools['region'].append(rList)
+        schools['conference'].append(cList)
+        return schools
+
+'''
+Function to create a json object   
+Arg: list to be converted, given name for .json file 
+Return: none 
+'''
+def createJSONObject(list, fileName):
+    with open(fileName, "w") as final:
+        json.dump(list, final)
+
+def assembleconferenceRegionSchools():
+    print("Starting conference/region/school scrape")
+    list = confRegionDriver()
+    print("conference/region/school scrape finished")
+
+    mC = list[0]
+    print("Started conversion to json for Men's Conferences")
+    createJSONObject(mC, "men-conf.json")
+    print("Finished conversion to json for Men's Conferences")
+
+    wC = list[1]
+    print("Started conversion to json for Women's Conferences")
+    createJSONObject(wC, "women-conf.json")
+    print("Finished conversion to json for Women's Conferences")
+
+    mR = list[2]
+    print("Started conversion to json for Men's Regions")
+    createJSONObject(mR, "men-region.json")
+    print("Finished conversion to json for Men's Regions")
+
+    wR = list[3]
+    print("Started conversion to json for Women's Regions")
+    createJSONObject(wR, "women-region.json")
+    print("Finished conversion to json for Women's Regions")
+
+    schools = list[4]
+    print("Started conversion to json for schools")
+    createJSONObject(schools, "schools.json")
+    print("Finished conversion to json for schools")
+
+def assembleMeets():
+    list = getConfLists()
+    mConf = list[0]
+    mRegions = list[1]
+    i = 1
+    while i < 290:
+        start = i
+        end = i + 10
+        print("Starting scraping meet results from pages" + str(start)+"-"+str(end))
+        list = getAllInfoFromRangeOfPages(start, end, mConf, mRegions)
+        print("Done scraping meet results")
+        createJSONObject(list, "meets" + str(start) + "-" + str(end) + ".json")
+        i = end + 1
 
 
 def main():
-    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(options=options, service=s)
-    list = confRegionDriver()
-    mC = list[0]
-    fC = list[1]
-    mR = list[2]
-    wR = list[3]
-    schools = list[4]
-    print(getAllInfoFromRangeOfPages(1, 6, mC, mR))
-    #getRaceInfoFromPage("https://www.tfrrs.org/results/xc/20823/NCAA_Division_III_Niagara_Region_Cross_Country_Championships")
+    assembleconferenceRegionSchools()
+    assembleMeets()
 
 
 
