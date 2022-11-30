@@ -386,7 +386,7 @@ def scrapeTeamResults(results, team):
                 elif items == 5:
                     listOfPoints.append(tag.text)
                 elif items > 5:
-                    if tag.text != " " or tag.text != "\u00a0":
+                    if tag.text != '\xa0':
                         scorers.append(tag.text)
                     else:
                         break
@@ -733,10 +733,10 @@ def assembleMeets():
     list = getConfLists()
     mConf = list[0]
     mRegions = list[1]
-    i = 1
-    while i < 290:
+    i = 285
+    while i < 296:
         start = i
-        end = i + 10
+        end = i + 5
         print("Starting scraping meet results from pages" + str(start)+"-"+str(end))
         list = getAllInfoFromRangeOfPages(start, end, mConf, mRegions)
         print("Done scraping meet results")
@@ -745,8 +745,14 @@ def assembleMeets():
 
 
 def main():
-    assembleconferenceRegionSchools()
-    assembleMeets()
+    #assembleconferenceRegionSchools()
+    #assembleMeets()
+    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(options=options, service=s)
+    getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/21150/SSU_Last_Chance', ['a'], ['b'])
 
 
 
