@@ -325,7 +325,7 @@ def getRaceLocation(driver, race):
             state = state[0:lastWhiteSpace]
         #sometimes state is listed twice
         list = state.split()
-        place = place + ' ' + list[0]
+        place = place + ' ' + list[0].toUpper()
 
 
         race["venue"] = venue.strip()
