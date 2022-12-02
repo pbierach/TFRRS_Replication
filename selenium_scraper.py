@@ -1,4 +1,3 @@
-import time
 import urllib.request
 
 import selenium.common.exceptions
@@ -446,7 +445,7 @@ def checkGradeFormat(grade, currYear):
     else:
         # written out as a year (i.e. 2024)
         if grade[0].isdigit():
-            if int(grade)-int(currYear) >=5 and int(grade)-int(currYear) <=0:
+            if int(grade)-int(currYear) <=5 and int(grade)-int(currYear) >=0:
                 return dateToGrade[int(grade)-int(currYear)]
         elif grade == "Freshman" or grade == "Sophomore" or grade == "Junior" or grade == "Senior":
         # written out as a string
@@ -733,7 +732,7 @@ def assembleMeets():
     list = getConfLists()
     mConf = list[0]
     mRegions = list[1]
-    i = 285
+    i = 1
     while i < 296:
         start = i
         end = i + 5
@@ -746,13 +745,7 @@ def assembleMeets():
 
 def main():
     #assembleconferenceRegionSchools()
-    #assembleMeets()
-    s = Service('/Users/pbierach/desktop/tfrrs_replication/chromedriver')
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(options=options, service=s)
-    getRaceInfoFromPage(driver, 'https://www.tfrrs.org/results/xc/21150/SSU_Last_Chance', ['a'], ['b'])
+    assembleMeets()
 
 
 
