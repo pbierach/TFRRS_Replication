@@ -230,26 +230,23 @@ Return: list of dictionaries
 def getRaceName(driver, race, c, r):
     name = driver.find_element(By.CLASS_NAME, "panel-title").text
     race["name"] = name
+    race["conference"] = False
+    race["national"] = False
+    race["regional"] = False
     speicalMeetFound = False
     if "Championships" in name or "Championship" in name:
         for n in c['name']:
             if n in name:
                 speicalMeetFound = True
                 race["conference"] = True
-                race["national"] = False
-                race["regional"] = False
                 break
         for n in r['name']:
             if n in name:
                 speicalMeetFound = True
-                race["conference"] = False
-                race["national"] = False
                 race["regional"] = True
                 break
         if speicalMeetFound is False and ("Division I" in name or "Division II" in name or "Division III" in name or "NAIA" in name):
-            race["conference"] = False
             race["national"] = True
-            race["regional"] = False
     return race
 
 '''
@@ -301,23 +298,38 @@ def getRaceLocation(driver, race):
     else:
         venue = ""
         place = ""
+        #find separator of date and place
         endOfDate = header.text.find("|")+1
+        #determine end of string
         endOfLocation = header.text.find("\n")
         if endOfLocation == -1:
             endOfLocation = len(header.text)
+        #isolate the location
         location = header.text[endOfDate:endOfLocation]
-        if location[-1].isdigit():
-            location = location[0:len(location)-6]
-        secondLastWhite = 0
+
+        #isolate name of place
+        comma = location.find(",")
         lastWhiteSpace = 0
-        for i, char in enumerate(location):
+        for i, char in enumerate(location[0:comma]):
             if char == ' ':
-                secondLastWhite = lastWhiteSpace
                 lastWhiteSpace = i
-        venue = location[0:secondLastWhite].strip()
-        place = location[secondLastWhite: len(location)].strip()
-        race["venue"] = venue
-        race["location"] = place
+        venue = location[0:lastWhiteSpace].strip()
+        #isolate city, state
+        place = location[lastWhiteSpace: comma+1]
+        state = location[comma+1:len(location)]
+        for i, char in enumerate(state):
+            if char == ' ':
+                lastWhiteSpace = i
+        #indicates zipcode
+        if state[lastWhiteSpace:len(state)][0].isdigit():
+            state = state[0:lastWhiteSpace]
+        #sometimes state is listed twice
+        list = state.split()
+        place = place + ' ' + list[0]
+
+
+        race["venue"] = venue.strip()
+        race["location"] = place.strip()
     return race
 
 '''
