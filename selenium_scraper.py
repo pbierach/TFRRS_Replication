@@ -69,7 +69,6 @@ Return: list of dictionary of all meet information
 def getRaceInfoFromPage(driver, url, c, r):
     try:
         driver.get(url)
-        keys = ["name", "date", "venue", "location", "gender", "event", "national", "regional", "conference", "team", "ind"]
         list = getRaceEvents(driver)
         genders = list[0]
         if len(genders) == 1:
@@ -100,7 +99,7 @@ Return: list containing either gender of race and dictionary for race or
         list containing 2 dictionaries for races and if women are first in results 
 '''
 def getRaceEvents(driver):
-    keys = ["name", "date", "venue", "location", "gender", "event", "conference", "regional", "national", "team", "ind"]
+    keys = ["name", "date", "state", "gender", "event", "conference", "regional", "national", "team", "ind"]
     eventList = driver.find_element(By.ID, 'quick-links-list')
     parenthEvent = driver.find_elements(By.CLASS_NAME, 'custom-table-title.custom-table-title-xc')
     #parenthEvent = parenthEvent.find_elements(By.CLASS_NAME, 'custom-table-title custom-table-title-xc')
@@ -293,8 +292,7 @@ Return: list of dictionaries
 def getRaceLocation(driver, race):
     header = driver.find_element(By.CLASS_NAME, 'col-lg-8')
     if len(header.text) < 21:
-        race["venue"] = "None given"
-        race["location"] = "None given"
+        race["state"] = "None given"
     else:
         venue = ""
         place = ""
@@ -313,23 +311,18 @@ def getRaceLocation(driver, race):
         for i, char in enumerate(location[0:comma]):
             if char == ' ':
                 lastWhiteSpace = i
-        venue = location[0:lastWhiteSpace].strip()
         #isolate city, state
         place = location[lastWhiteSpace: comma+1]
-        state = location[comma+1:len(location)]
+        state = location[comma+1:len(location)].strip()
         for i, char in enumerate(state):
             if char == ' ':
                 lastWhiteSpace = i
         #indicates zipcode
-        if state[lastWhiteSpace:len(state)][0].isdigit():
+        if state[-1].isdigit():
             state = state[0:lastWhiteSpace]
         #sometimes state is listed twice
         list = state.split()
-        place = place + ' ' + list[0].toUpper()
-
-
-        race["venue"] = venue.strip()
-        race["location"] = place.strip()
+        race['state'] = list[0]
     return race
 
 '''
@@ -707,7 +700,7 @@ Arg: list to be converted, given name for .json file
 Return: none 
 '''
 def createJSONObject(list, fileName):
-    with open(fileName, "w") as final:
+    with open("/Users/pbierach/Desktop/tffrs_replication/json/meets/"+fileName, "w") as final:
         json.dump(list, final)
 
 def assembleconferenceRegionSchools():
