@@ -18,7 +18,7 @@ This was a final project for Ithaca College's databases class (COMP375). The pur
 A link to the project poster: https://docs.google.com/presentation/d/1P8yPdcQ5fzVDgG7VSmjHE-_UWwiM5lJ6hsd9K6a3UEM/edit?usp=sharing
 
 # Future Work
-As it stands, the database table linking athletes to their individual results remains unpopulated. The method for that in the 'normalize_to_sql.py' file is implemented, but has not yet been run. 
+As it stands, the database tables for individual results and linking athletes to their individual results remain unpopulated. The methods for populating those tables are implemented in the 'normalize_to_sql.py' file, but have yet to been run. 
 
 # Contact
 For any additional questions please email me at: pbierach@ithaca.edu
