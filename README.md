@@ -1,5 +1,5 @@
 # TFRRS_Replication
-# Patrick Bierach (Ithaca College '24)
+  Patrick Bierach (Ithaca College '24)
 
 # About 
 Python code to replicate the underlying database used on the TFFRS.org website. 
