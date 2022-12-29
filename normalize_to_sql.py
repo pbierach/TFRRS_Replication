@@ -488,8 +488,42 @@ def populate_athletes(db, cursor, teamD):
 
 
 # ---------------5TH-ARY TABLE--------------------
-def populate_ind_results(db, cursor, ):
-    return 'not done'
+def populate_ind_results(db, cursor, meetD, eventD, gradeD, athD, teamD):
+    indRDict = {}
+    path_to_json = "/Users/pbierach/Desktop/tffrs_replication/json/meets/"
+    for file_name in [file for file in os.listdir(path_to_json) if file.endswith('.json')]:
+        with open(path_to_json + file_name) as json_file:
+            data = json.load(json_file)
+            for doc in data:
+                results = doc['ind']
+                meetKey = doc['name'] + ", " + doc['date']
+                event = eventD['event']
+                try:
+                    meet = meetD[meetKey]
+                except:
+                    break
+                for i, res in enumerate(results):
+                    place = results['place'][i]
+                    time = results['time'][i]
+                    sql = "INSERT IGNORE INTO ind_results (meet_id, place, finish_time, race_distance) VALUES (%s, %s, %s, %s)"
+                    cursor.execute(sql, [meet, place, time, event])
+                    db.commit()
+
+                    if doc['gender'] == 'Men':
+                        teamId = results['team'][i] + ": 1"
+                    else:
+                        teamId = results['team'][i] + ": 2"
+                    athKey = results['name'][i] + ": " + teamId
+                    ath = athD[athKey]
+                    try:
+                        grade = gradeD[results['grade'][i]]
+                    except:
+                        grade = 5
+                    sql = "INSERT IGNORE INTO athlete_to_result (indres_id, ath_id, grade_id) VALUES (%s, %s, %s)"
+                    cursor.execute(sql, [cursor.lastrowid, ath, grade])
+                    key = str(meet) + ", " + str(place) + ", " + str(doc['gender'])
+                    indRDict[key] = cursor.lastrowid
+    print(cursor.rowcount, "record inserted into ind_results.")
 
 
 def createDBAndFK(path):
