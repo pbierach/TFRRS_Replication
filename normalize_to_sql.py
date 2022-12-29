@@ -525,7 +525,6 @@ def populate_ind_results(db, cursor, meetD, eventD, gradeD, athD, teamD):
                     indRDict[key] = cursor.lastrowid
     print(cursor.rowcount, "record inserted into ind_results.")
 
-
 def createDBAndFK(path):
     print("Starting from scratch!")
     db = connect()
